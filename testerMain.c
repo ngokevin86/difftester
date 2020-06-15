@@ -3,18 +3,22 @@
  */
 
 /*
-	This program will run expecting either potentially one or no arguments.
+	This program will run expecting at least one argument - the program to test to.
 
-	If there are no arguments, then it will by default look for a specifically named textfile
-	named "input.txt" which will contain the exact command to run.
+	Up to an additional 3 arguments may be supplied as arguments to be given to the program being tested.
 
-	There are optional input flags which will control what other functions to run
+	The program will take the output from the tested program and put it in a temp file, and then diff it against
+	an expected "output.txt" file (which should exist in the same directory).
+
+	The idea is to allow repeated running via Make tests
+
+	[To be added]
+	A flag to allow diff against another text file (something other than output.txt)
+	-f <file.txt>
+	where 'file.txt' is the file which it will diff the output to.
 
 	-g
-	generates makefile
-
-	-m
-	make and run
+	just generate a Makefile
 
  */
 
@@ -22,95 +26,98 @@
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
+#include <errno.h>
 
-int makegen();
+//int makegen();
 
 int main(int argc, char* argv[]){
-
-	/*
-	idea:
-	be able to shortcut rerunning programs for testing.
-	particularly programs which take input upon running it
-	i.e. ./sum 5 3
-	saves needing to type the same input over and over again, especially if they get long
-	including needing to make and run again, as sometimes previous commands get lost in other commands
-	so mashing the up arrow takes awhile
-	*/
-
-	/*
-	./tester -g
-	iteration one: just generate the makefile?
-		take program file name to generate
-		-allow flags such as -math or -pthread?
-
-	./tester
-	iteration two: read command from specific textfile
-		user defined textfile with input command which program will read and execute directly
-		-have a difference between making and running and just running?
-		-allow multiple files to be made and compiled?
-
-	part of ./tester
-	iteration three: pipe output to a file
-		self explanitory, goes into "output.txt"
-
-	part of ./tester
-	iteration four: diff given output and expected output
-	
-	*/
-
 	/* 
-	Idea 2:
-	Take in some number of arguments, with the first given argument being the program executable (not this program's
-	executable)
+	Take in some number of arguments, with the first given argument being the name of the program executable
 	Execute the given program as given, just that it will pipe the output of that program to a .temp.txt file and then
 	at the end, diff that file and an expected output.txt
+	
+	Expected input
+	./tester <program> <arg1> <arg2> <arg3>...
 
-
-
+	-?later be able to give it a specific text file to compare against?
+		something like
+		./tester -f <textfile> <program> <arg1> <arg2> <arg3>...
 	*/
 
-	if(argc == 1){
-		//check for makefile
-		//?expect makefile to be named "Makefile"
-		if(access("Makefile", F_OK) == -1){
-			printf("Makefile does not exist in current directory, move one in or generate a new one with './tester -g'.\n");
-			return 1;
-		}
-
-		//run make
-
-		//continue if no issues
-
-		//check for command textfile
-		if(access("command.txt", F_OK) == -1){
-			printf("Makefile already exists in current directory, move or remove before running.\n");
-			return 1;
-		}
-
-		//run command in textfile
-	}
-
 	//check input
-	if(argc > 2){	//no more than executable and potentially one flag
-		printf("Usage: './tester <-flag>'\n");
-		printf("Flags:\n");
-		printf("'-g': Generate Makefile\n");
+	if(argc < 2 || argc > 5){
+		printf("Usage: './tester <program> <arg1> <arg2> <arg3>'\n");
+		return 1;
 	}
 
+	//-later- check flag
+	//if flag is set, change what program will take in as the input program
 	//check argv[2]
-	if(strncmp(argv[2], "-g", 2) == 0){
+	if(strncmp(argv[2], "-f", 2) == 0){
 		if(makegen()){
 			return 1;
 		}
 		return 0;
 	}
+	else{	//arg 2 is the program
 
-	printf("Usage: './tester <-flag>'\n");
-	printf("Flags: \n");
-	printf("'-g': Generate Makefile\n");
+	}
+
+	int argCount = 2;	//program argument, arguments 1, 2, and 3 are +1, +2, and +3 respectively
+
+	if(access(argv[argCount], F_OK) == -1){	//if 
+		printf("Error: program '%s' does not exist in current directory.\n", argv[argCounter]);
+		return 1;
+	}
+
+	if(access("output.txt", F_OK) != 1){
+		printf("Error: expected file 'output.txt' not found.\n");
+	}
+
+
+	//Possibility 1: Defined structure
+	/*
+	Input struct:
+	string program name
+	type arg1
+	type arg2
+	type arg3
+	*/
+	//?End goal: Dynamic structure
+
+	//fork and exec
+	int err = 0;
+	err = fork();
+	if(err == 0){	//child
+		//point stdout to pipe
+		//exec program
+		//args[] = {argv[argCount], argv[argCount + 1], argv[argCount + 2], NULL};	//NULL needs to be last argument
+		//needs to be dynamic dependent on how many arguments are supplied
+		//which is more important when there are more than just 5 arguments
+		//although a program that takes more than five arguments would just be insane
+		//execvp(argv[argCount], args)
+
+	}
+	else if(err == -1){	//error
+		fprintf("Error while forking: %s\n", strerror(errno));
+		return errno;
+	}
+	else{	//parent
+		//open file '.temp.txt'
+		//point pipe to file
+		//?also print whatever was in pipe?
+		//pipe stdout output to a file named '.temp.txt'
+
+	}
+
+	//exec diff with '.temp.txt' and 'output.txt'
+
+	printf("Usage: './tester <program> <arg1> <arg2> <arg3>'\n");
 
 	return 1;
 }
+
+/*
 
 int makegen(){
 	//make sure makefile doesn't already exist
@@ -139,13 +146,12 @@ int makegen(){
 	//clean:
 	//	rm -f <program name> *.o
 
-	/*
-	alternatively I should just make it use dollar replacement, which means all, run, and clean will be the same between
-	all generated makefiles, with only the line with the replacement being different
-	--probably just add this later as a refactorization
-	*/
+	
+	//alternatively I should just make it use dollar replacement, which means all, run, and clean will be the same between
+	//all generated makefiles, with only the line with the replacement being different
+	//--probably just add this later as a refactorization
 
 
 
 	return 0;
-}
+}*/
