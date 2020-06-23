@@ -30,6 +30,8 @@
 #include <errno.h>
 #include <sys/wait.h>
 
+#define DEBUG 1
+
 //int makegen();
 
 int main(int argc, char* argv[]){
@@ -56,11 +58,15 @@ int main(int argc, char* argv[]){
 	//if flag is set, change what program will take in as the input program
 	//check argv[2]
 
-	int argCount = 1;	//program argument, arguments 1, 2, and 3 are +1, +2, and +3 respectively
+	int argCount = 1;	//position of program argument in argv
 
-	if(strncmp(argv[1], "-f", 2) == 0 && argc > 3){	//if receives -f flag and has at least 3 supplied arguments
-		printf("received '-f' as arg 2\n");
-		argCount += 2;
+	if(strncmp(argv[1], "-f", 2) == 0){	//if receives -f flag and has at least 3 supplied arguments
+		if(argc < 4){	//needs at least a program argument
+			printf("Usage with -f: './tester -f <output.txt> <program> <arg1>\n");
+			return 1;
+		}
+		if(DEBUG)printf("received '-f' as arg 2\n");
+		argCount += 2;	//move position of argument
 		return 0;	//temporary
 	}
 
@@ -74,36 +80,26 @@ int main(int argc, char* argv[]){
 		return 1;
 	}
 	char* argExec[argc];
-	printf("argc: %d\targCount: %d\n", argc, argCount);
 
-	char* result = malloc(strlen(argv[argCount]) + 3);
-	printf("result: %s\n", result);
-	printf("program: %s\n", argv[argCount]);
+	char* result;	//prepend "./" to the program name
+	if((result = malloc(strlen(argv[argCount]) + 3)) == NULL){
+		fprintf(stderr, "Error while mallocing: %s\n", strerror(errno));
+		exit(errno);
+	}
 	strcpy(result, "./");
 	strcat(result, argv[argCount]);
-	printf("result: %s\n", result);
 	argExec[0] = result;
 
 	for(int i = argCount + 1; i < argc; i++){
-		printf("Copied %s to i: %d\n", argv[i], i - argCount);
 		argExec[i - argCount] = argv[i];
 	}
 	argExec[argc - 1] = NULL;
 
-	for(int i = 0; i < argc; i++){
-		printf("argExec: %s\n", argExec[i]);
+	if(DEBUG){
+		for(int i = 0; i < argc; i++){
+			printf("argExec: %s\n", argExec[i]);
+		}
 	}
-
-	//Possibility 1: Defined structure
-	/*
-	Input struct:
-	string program name
-	type arg1
-	type arg2
-	type arg3
-	*/
-	//?End goal: Dynamic structure?
-	//probably don't actually need a temp structure
 
 	//create pipe
 	int fd[2];
@@ -115,36 +111,28 @@ int main(int argc, char* argv[]){
 	int fdWrite = fd[1];
 
 	//fork and exec
-	//int err = 0;
-	//err = fork();
 	if(fork()){	//parent
 		wait(NULL);
-		free(result);
-		printf("Parent\n");
+		free(result);	//free malloc
+		if(DEBUG)printf("Parent start\n");
 		if((close(fdWrite)) == -1){	//close unneeded write pipe
 			fprintf(stderr, "Error closing write pipe: %s\n", strerror(errno));
 			exit(errno);
 		}
 
-		if(access(".temp.txt", F_OK) == 0){	//remove if exists
+		if(access(".temp.txt", F_OK) == 0){	//remove if temp file exists
 			if(remove(".temp.txt") != 0){	//if error while removing temp file
 				fprintf(stderr, "Error while removing '.temp.txt': %s\n", strerror(errno));
 				exit(errno);
 			}
 		}
-
-		//open file '.temp.txt'
-		FILE *temp = fopen(".temp.txt", "w+");
+		FILE *temp = fopen(".temp.txt", "w+");	//create + open file '.temp.txt' to write to
 		char buffer[1];
-		printf("Reading from pipe...\n");
 		while(read(fdRead, buffer, sizeof(buffer)) != 0){
-			printf("Buf: %s\n", buffer);
+			if(DEBUG)printf("Buf: %s\n", buffer);
 			fwrite(buffer, 1, sizeof(buffer), temp);
 		}
-		printf("Finished reading from pipe.\n");
 		fclose(temp);
-		//point pipe to file
-		//?also print whatever was in pipe?
 
 		char* argDiff[3];
 		argDiff[0] = "diff";
@@ -152,14 +140,13 @@ int main(int argc, char* argv[]){
 		argDiff[2] = "output.txt";
 		argDiff[3] = NULL;
 		execvp(argDiff[0], argDiff);
-		
 	}
 	else if(errno != 0){	//error
 		fprintf(stderr, "Error while forking: %s\n", strerror(errno));
 		exit(errno);
 	}
 	else{	//child
-		printf("Child\n");
+		if(DEBUG)printf("Child start\n");
 		if((close(fdRead)) == -1){	//close unneeded read pipe
 			fprintf(stderr, "Error closing read pipe: %s\n", strerror(errno));
 			exit(errno);
@@ -185,11 +172,6 @@ int main(int argc, char* argv[]){
 		}
 		close(fdWrite);
 	}
-
-	//exec diff with '.temp.txt' and 'output.txt'
-
-	//printf("Usage: './tester <program> <arg1> <arg2> <arg3>'\n");
-
 	return 0;
 }
 
