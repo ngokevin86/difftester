@@ -1,23 +1,50 @@
 Kevin Ngo
-C Tester
+Diff Tester
 
 Included files:
 testerMain.c
 Makefile
 
 Idea of the program:
-The primary idea of the program is to be able to quickly rerun a program with input over and over again.
-Although you could hit the up arrow in terminal until you get the previous command back, 
-sometimes you run a ton of other commands between then, so you're stuck mashing the up arrow a few times.
-Alternatively you could retype the command, but they can get long.
+This program allows you to to be able to quickly execute and compare the output of a program using system diff.
+The program creates a temporary file named '.temp.txt', and then compares it to an expected text file named 'output.txt'.
+Alternatively you can use the '-f' flag and supply a text file to compare the output to instead of 'output.txt'.
 
-Additionally the program should be able to create a (simple) makefile which can be used.
+To compile, have required files
+	testerMain.c
+	Makefile
+in the same directory, and use the command
+	make
+OR
+	gcc -o tester testerMain.c
+to compile 'testerMain.c'
 
+To run, use the command format
+	./testerMain <program> <arguments>
+where
+	<program>
+	is your compiled program to run
+and
+	<arguments>
+	is the arguments to given to your program
+With this format, it will expect a file named
+	output.txt
+in the current directory, and will take up to 8 arguments.
 
-Self notes:
-Seems "make" has a fair amount of this functionality already, just it's kinda confusing.
-Maybe instead of trying to replicate those functionalities I could just generate a makefile
-*shrug*
-or I could primarily focus on the makefile generation, and then do the running as a side thing.
+ALTERNATIVELY to run, use the command format
+	./testerMain -f <output.txt> <program> <arguments>
+where
+	<output.txt>
+	is a given text file to compare to at the end
+This will take up to 6 arguments.
 
-I could also have it pipe stdout to a text file which then I diff it to another text file, as I had considered earlier.
+Output from this program is a hidden temp file named '.temp.txt'.
+This file is used for the diff function.
+
+Example command:
+	./tester addNum 8 6
+where 'addNum' is a program which adds two numbers together.
+
+Example command with '-f' flag:
+	./tester -f test.txt addNum 8 6
+where 'test.txt' is a text file.
