@@ -1,5 +1,5 @@
 /* Kevin Ngo
- * C Tester
+ * Diff Tester
  */
 
 /*
@@ -10,12 +10,10 @@
 	The program will take the output from the tested program and put it in a temp file, and then diff it against
 	an expected "output.txt" file (which should exist in the same directory).
 
-	The idea is to allow repeated running via Make tests
+	The idea is to allow repeated running via Make tests.
 
-	[To be added]
-	A flag to allow diff against another text file (something other than output.txt)
-	-f <file.txt>
-	where 'file.txt' is the file which it will diff the output to.
+	Optionally, flag '-f' can be used, and then the next argument can be a given text file to compare to instead of
+	'output.txt'
  */
 
 #include <stdio.h>
@@ -29,8 +27,9 @@
 
 int main(int argc, char* argv[]){
 	//check input
-	if(argc < 2 || argc > 5){
-		printf("Usage: './tester <program> <arg1> <arg2> <arg3>'\n");
+	if(argc < 2 || argc > 10){
+		printf("Usage: './tester <program> <arg1> <arg2> <arg3> <up to 8 arguments>'\n");
+		printf("Usage with -f: './tester -f <output.txt> <program> <arg1> <arg2> <arg3> <up to 6 arguments>\n");
 		return 1;
 	}
 
@@ -39,23 +38,24 @@ int main(int argc, char* argv[]){
 	//check argv[2]
 
 	int argCount = 1;	//position of program argument in argv
+	char *output = "output.txt";
 
 	if(strncmp(argv[1], "-f", 2) == 0){	//if receives -f flag and has at least 3 supplied arguments
 		if(argc < 4){	//needs at least a program argument
-			printf("Usage with -f: './tester -f <output.txt> <program> <arg1>\n");
+			printf("Usage with -f: './tester -f <output.txt> <program> <arg1> <arg2> <arg3> <up to 6 arguments>\n");
 			return 1;
 		}
 		if(DEBUG)printf("received '-f' as arg 2\n");
 		argCount += 2;	//move position of argument
-		return 0;	//temporary
+		output = argv[2];
 	}
 
 	if(access(argv[argCount], F_OK) == -1){	//if program doesn't exist
 		printf("Error: program '%s' does not exist in directory.\n", argv[argCount]);
 		return 1;
 	}
-	if(access("output.txt", F_OK) != 0){	//if diff file doesn't exist
-		printf("Error: expected file 'output.txt' not found.\n");
+	if(access(output, F_OK) != 0){	//if diff file doesn't exist
+		printf("Error: expected file '%s' not found.\n", output);
 		return 1;
 	}
 
@@ -72,10 +72,10 @@ int main(int argc, char* argv[]){
 	for(int i = argCount + 1; i < argc; i++){
 		argExec[i - argCount] = argv[i];
 	}
-	argExec[argc - 1] = NULL;
+	argExec[argc - argCount] = NULL;
 
 	printf("Going to execute: ");
-	for(int i = 0; i < argc - 1; i++){
+	for(int i = 0; i < argc - argCount; i++){
 		printf("%s ", argExec[i]);
 	}
 	printf("\n");
@@ -122,9 +122,9 @@ int main(int argc, char* argv[]){
 		else
 			argDiff[2] = "output.txt"
 		*/
-		argDiff[2] = "output.txt";
+		argDiff[2] = output;
 		argDiff[3] = NULL;
-		printf(">>>>Diffing between output from '%s' and output.txt...\n", argv[argCount]);
+		printf(">>>>Diffing between output from '%s' and '%s'...\n", argv[argCount], output);
 		if((execvp(argDiff[0], argDiff)) == -1){
 			fprintf(stderr, "Error exec in parent: %s\n", strerror(errno));
 			exit(errno);
